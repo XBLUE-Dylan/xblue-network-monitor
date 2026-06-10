@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Xblue Network Monitor</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+</head>
+<body>
+  <div class="xnm">
+
+    <div class="header">
+      <div class="logo">
+        <svg class="logo-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="xgrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#7B3FBE"/>
+              <stop offset="100%" stop-color="#1E6FCC"/>
+            </linearGradient>
+          </defs>
+          <text x="2" y="26" font-size="28" font-weight="700" fill="url(#xgrad)" font-family="Arial">X</text>
+        </svg>
+        <div>
+          <div class="logo-text">Xblue Network Monitor</div>
+          <div class="logo-sub">SIP Operations Center</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <span class="status-text">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">Not connected</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="api-section">
+      <input class="api-input" type="password" id="apiKeyInput" placeholder="Enter Telnyx API key to connect..." />
+      <button class="btn-connect" id="connectBtn" onclick="connectToTelnyx()">Connect</button>
+      <span id="lastUpdated"></span>
+    </div>
+
+    <div class="content" id="mainContent">
+      <div class="empty-state">
+        <div class="empty-icon"><i class="ti ti-network"></i></div>
+        <div class="empty-title">Xblue Network Monitor</div>
+        <div class="empty-sub">Enter your Telnyx API key above to load your SIP connections and call analytics</div>
+      </div>
+    </div>
+
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
