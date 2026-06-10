@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await fetch('https://api.telnyx.com/v2/sip_connections?page[size]=25', {
+    const response = await fetch('https://api.telnyx.com/v2/connections?page[size]=25', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
