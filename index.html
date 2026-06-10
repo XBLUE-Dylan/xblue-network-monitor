@@ -30,26 +30,23 @@
       <div class="header-right">
         <span class="status-text">
           <span class="status-dot" id="statusDot"></span>
-          <span id="statusText">Not connected</span>
+          <span id="statusText">Connecting...</span>
         </span>
       </div>
     </div>
 
-    <div class="api-section">
-      <input class="api-input" type="password" id="apiKeyInput" placeholder="Enter Telnyx API key to connect..." />
-      <button class="btn-connect" id="connectBtn" onclick="connectToTelnyx()">Connect</button>
-      <span id="lastUpdated"></span>
-    </div>
-
     <div class="content" id="mainContent">
       <div class="empty-state">
-        <div class="empty-icon"><i class="ti ti-network"></i></div>
-        <div class="empty-title">Xblue Network Monitor</div>
-        <div class="empty-sub">Enter your Telnyx API key above to load your SIP connections and call analytics</div>
+        <div class="empty-icon"><i class="ti ti-loader"></i></div>
+        <div class="empty-title">Loading...</div>
+        <div class="empty-sub">Connecting to Telnyx and loading your SIP connections</div>
       </div>
     </div>
 
   </div>
   <script src="app.js"></script>
+  <script>
+    connectToTelnyx();
+  </script>
 </body>
 </html>
