@@ -24,14 +24,16 @@ export default async function handler(req, res) {
 
     if (action === 'create_report') {
       const end = new Date();
-      const start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const r = await fetch('https://api.telnyx.com/v2/legacy_reporting/batch_detail_records/voice', {
+      const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const r = await fetch('https://api.telnyx.com/v2/reporting/cdr_requests', {
         method: 'POST',
         headers: auth,
         body: JSON.stringify({
           start_time: start.toISOString(),
           end_time: end.toISOString(),
-          report_name: 'xblue_monitor_' + Date.now()
+          source: 'calls',
+          record_types: [1, 2],
+          call_types: [1, 2]
         })
       });
       const data = await r.json();
@@ -41,7 +43,7 @@ export default async function handler(req, res) {
     if (action === 'check_report') {
       const id = req.query.id;
       if (!id) return res.status(400).json({ error: 'No report id' });
-      const r = await fetch('https://api.telnyx.com/v2/legacy_reporting/batch_detail_records/voice/' + id, { headers: auth });
+      const r = await fetch('https://api.telnyx.com/v2/reporting/cdr_requests/' + id, { headers: auth });
       const data = await r.json();
       return res.status(r.status).json(data);
     }
