@@ -33,7 +33,7 @@ async function connectToTelnyx() {
       <div class="empty-state">
         <div class="empty-icon"><i class="ti ti-alert-circle"></i></div>
         <div class="empty-title">Connection failed</div>
-        <div class="empty-sub">${e.message || 'Could not connect to Telnyx. Check your API key in Vercel environment variables.'}</div>
+        <div class="empty-sub">${e.message || 'Could not connect to Telnyx.'}</div>
       </div>`;
   }
 }
@@ -43,8 +43,9 @@ function generateMockCalls(connections) {
   const now = Date.now();
   connections.forEach((conn) => {
     const vol = Math.floor(Math.random() * 900) + 150;
+    const lastCallOffset = Math.random() * 5 * 24 * 60 * 60 * 1000;
     for (let j = 0; j < vol; j++) {
-      const ts = new Date(now - Math.random() * 30 * 24 * 60 * 60 * 1000);
+      const ts = new Date(now - lastCallOffset - Math.random() * 28 * 24 * 60 * 60 * 1000);
       const dur = Math.floor(Math.random() * 320) + 15;
       const failed = Math.random() < 0.055;
       calls.push({
@@ -57,6 +58,13 @@ function generateMockCalls(connections) {
     }
   });
   return calls;
+}
+
+function timeAgo(date) {
+  const secs = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  if (secs < 3600) return Math.floor(secs/60) + 'm ago';
+  if (secs < 86400) return Math.floor(secs/3600) + 'h ago';
+  return Math.floor(secs/86400) + 'd ago';
 }
 
 function renderDashboard() {
@@ -95,12 +103,15 @@ function renderDashboard() {
   connections.forEach(conn => {
     const cc = calls.filter(c => c.connection_id === conn.id);
     const failed = cc.filter(c => c.status === 'failed').length;
+    const completedCalls = cc.filter(c => c.status === 'completed');
     const mins = Math.round(cc.reduce((a, c) => a + (c.duration || 0), 0) / 60);
+    const avgDur = completedCalls.length > 0 ? Math.round(completedCalls.reduce((a,c) => a+c.duration, 0) / completedCalls.length) : 0;
     const ib = cc.filter(c => c.direction === 'inbound').length;
     const ob = cc.filter(c => c.direction === 'outbound').length;
+    const lastCall = cc.length > 0 ? cc.reduce((latest, c) => c.start_time > latest ? c.start_time : latest, cc[0].start_time) : null;
     const fr = cc.length > 0 ? failed / cc.length : 0;
     const health = fr < 0.03 ? 'healthy' : fr < 0.08 ? 'warning' : 'critical';
-    connStats[conn.id] = { total: cc.length, failed, mins, health, inbound: ib, outbound: ob };
+    connStats[conn.id] = { total: cc.length, failed, mins, health, inbound: ib, outbound: ob, avgDur, lastCall };
   });
 
   const tableRows = connections.map(conn => {
@@ -112,14 +123,19 @@ function renderDashboard() {
       : '<span class="badge badge-red">Critical</span>';
     const failedVal = s.failed > 0 ? `<span class="failed-val">${s.failed}</span>` : `<span style="color:#9ca3af">0</span>`;
     const name = conn.connection_name || 'SIP Connection';
-    const shortId = conn.id ? conn.id.slice(0, 18) + '...' : '';
+    const shortId = conn.id ? conn.id.slice(0, 16) + '...' : '';
+    const avgMin = Math.floor(s.avgDur / 60);
+    const avgSec = s.avgDur % 60;
+    const avgFmt = avgMin > 0 ? `${avgMin}m ${avgSec}s` : `${avgSec}s`;
     return `<tr>
       <td><div class="customer-name">${name}</div><div class="customer-id">${shortId}</div></td>
       <td>${s.total.toLocaleString()}</td>
       <td>${s.mins.toLocaleString()} min</td>
+      <td>${avgFmt}</td>
       <td>${failedVal}</td>
+      <td><span style="color:#9ca3af">${s.lastCall ? timeAgo(s.lastCall) : '—'}</span></td>
       <td>${badge}</td>
-      <td><button class="btn-analyze" onclick="analyzeCustomer('${conn.id}','${name.replace(/'/g,"\\'")}',${s.total},${s.failed},${s.mins},${s.inbound},${s.outbound})"><i class="ti ti-sparkles"></i> Analyze</button></td>
+      <td><button class="btn-analyze" onclick="analyzeCustomer('${conn.id}','${name.replace(/'/g,"\\'")}',${s.total},${s.failed},${s.mins},${s.inbound},${s.outbound},${s.avgDur})"><i class="ti ti-sparkles"></i> Analyze</button></td>
     </tr>`;
   }).join('');
 
@@ -149,9 +165,7 @@ function renderDashboard() {
 
     <div class="two-col">
       <div class="chart-card">
-        <div class="section-header">
-          <div><div class="section-title">Call volume — last 14 days</div></div>
-        </div>
+        <div class="section-header"><div><div class="section-title">Call volume — last 14 days</div></div></div>
         <div class="chart-legend">
           <span class="legend-item"><span class="legend-dot" style="background:#1E6FCC"></span>Inbound</span>
           <span class="legend-item"><span class="legend-dot" style="background:#7B3FBE"></span>Outbound</span>
@@ -159,9 +173,7 @@ function renderDashboard() {
         <div style="position:relative;height:200px;"><canvas id="volumeChart" role="img" aria-label="Daily call volume">Daily call volume.</canvas></div>
       </div>
       <div class="chart-card">
-        <div class="section-header">
-          <div><div class="section-title">Direction split</div></div>
-        </div>
+        <div class="section-header"><div><div class="section-title">Direction split</div></div></div>
         <div class="chart-legend">
           <span class="legend-item"><span class="legend-dot" style="background:#1E6FCC"></span>Inbound ${Math.round(inbound/totalCalls*100)}%</span>
           <span class="legend-item"><span class="legend-dot" style="background:#7B3FBE"></span>Outbound ${Math.round(outbound/totalCalls*100)}%</span>
@@ -180,7 +192,7 @@ function renderDashboard() {
       <table class="customer-table">
         <thead>
           <tr>
-            <th>Customer</th><th>Calls</th><th>Minutes</th><th>Failed</th><th>Status</th><th>AI analysis</th>
+            <th>Customer</th><th>Calls</th><th>Minutes</th><th>Avg duration</th><th>Failed</th><th>Last call</th><th>Status</th><th>AI analysis</th>
           </tr>
         </thead>
         <tbody>${tableRows}</tbody>
@@ -224,16 +236,12 @@ function renderDashboard() {
         labels: ['Inbound', 'Outbound'],
         datasets: [{ data: [inbound, outbound], backgroundColor: ['#1E6FCC', '#7B3FBE'], borderWidth: 0 }]
       },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        cutout: '72%'
-      }
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '72%' }
     });
   }, 50);
 }
 
-async function analyzeCustomer(connId, name, total, failed, mins, inbound, outbound) {
+async function analyzeCustomer(connId, name, total, failed, mins, inbound, outbound, avgDur) {
   const panel = document.getElementById('aiPanel');
   const aiText = document.getElementById('aiText');
   const aiTitle = document.getElementById('aiTitle');
@@ -243,7 +251,6 @@ async function analyzeCustomer(connId, name, total, failed, mins, inbound, outbo
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
   const failRate = total > 0 ? ((failed / total) * 100).toFixed(1) : '0.0';
-  const avgDur = total > 0 ? Math.round((mins * 60) / total) : 0;
 
   const prompt = `You are a telecom network analyst reviewing SIP call data for a business customer managed by Xblue, a white-label telecom provider. Provide a concise plain-English health report in 3-4 sentences. Be specific and actionable.
 
@@ -252,19 +259,15 @@ Total calls (30 days): ${total}
 Failed calls: ${failed} (${failRate}%)
 Total minutes: ${mins}
 Inbound: ${inbound} Outbound: ${outbound}
-Avg call duration: ${avgDur} seconds
+Average call duration: ${avgDur} seconds
 
-Provide: 1) Overall health 2) Any concerns 3) One recommendation. Professional but conversational. Do not mention Telnyx.`;
+Provide: 1) Overall health status 2) Any concerns or anomalies worth flagging 3) One specific recommendation. Keep it professional but conversational. Do not mention Telnyx — this is white-labeled.`;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
+      body: JSON.stringify({ prompt })
     });
     const data = await res.json();
     const text = data.content?.find(b => b.type === 'text')?.text || 'Analysis unavailable.';
