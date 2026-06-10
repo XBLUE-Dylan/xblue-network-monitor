@@ -10,7 +10,6 @@
 </head>
 <body>
   <div class="xnm">
-
     <div class="header">
       <div class="logo">
         <svg class="logo-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -32,9 +31,9 @@
           <span class="status-dot" id="statusDot"></span>
           <span id="statusText">Connecting...</span>
         </span>
+        <button class="btn-connect" id="connectBtn" onclick="connectToTelnyx()">Refresh</button>
       </div>
     </div>
-
     <div class="content" id="mainContent">
       <div class="empty-state">
         <div class="empty-icon"><i class="ti ti-loader"></i></div>
@@ -42,11 +41,7 @@
         <div class="empty-sub">Connecting to Telnyx and loading your SIP connections</div>
       </div>
     </div>
-
   </div>
   <script src="app.js"></script>
-  <script>
-    connectToTelnyx();
-  </script>
 </body>
 </html>
