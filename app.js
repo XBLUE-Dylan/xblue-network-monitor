@@ -1,21 +1,15 @@
 let allData = { connections: [] };
 let charts = {};
-let currentApiKey = '';
 
 async function connectToTelnyx() {
-  const key = document.getElementById('apiKeyInput').value.trim();
-  if (!key) return;
-  currentApiKey = key;
   const btn = document.getElementById('connectBtn');
   btn.disabled = true;
   btn.textContent = 'Connecting...';
   setStatus('connecting');
 
   try {
-    const res = await fetch('https://api.telnyx.com/v2/sip_connections?page[size]=25', {
-      headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' }
-    });
-    if (!res.ok) throw new Error('Auth failed');
+    const res = await fetch('/api/telnyx?endpoint=sip_connections%3Fpage%5Bsize%5D%3D25');
+    if (!res.ok) throw new Error('Failed');
     const data = await res.json();
     allData.connections = data.data || [];
     setStatus('connected');
@@ -31,7 +25,7 @@ async function connectToTelnyx() {
       <div class="empty-state">
         <div class="empty-icon"><i class="ti ti-alert-circle"></i></div>
         <div class="empty-title">Connection failed</div>
-        <div class="empty-sub">Check your API key and try again. Make sure you're using a Telnyx V2 API key.</div>
+        <div class="empty-sub">Could not connect to Telnyx. Check your API key in Vercel environment variables.</div>
       </div>`;
   }
 }
@@ -288,6 +282,7 @@ Provide: 1) Overall health status 2) Any concerns or anomalies worth flagging 3)
   }
 }
 
-document.getElementById('apiKeyInput').addEventListener('keydown', function(e) {
+document.getElementById('connectBtn').addEventListener('click', connectToTelnyx);
+document.getElementById('apiKeyInput') && document.getElementById('apiKeyInput').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') connectToTelnyx();
 });
