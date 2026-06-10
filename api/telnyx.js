@@ -9,29 +9,20 @@ export default async function handler(req, res) {
 
   const apiKey = process.env.TELNYX_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'API key not configured' });
+    return res.status(500).json({ error: 'API key not configured on server' });
   }
-
-  const { endpoint } = req.query;
-  if (!endpoint) {
-    return res.status(400).json({ error: 'No endpoint specified' });
-  }
-
-  const url = `https://api.telnyx.com/v2/${endpoint}`;
 
   try {
-    const response = await fetch(url, {
-      method: req.method === 'POST' ? 'POST' : 'GET',
+    const response = await fetch('https://api.telnyx.com/v2/sip_connections?page[size]=25', {
+      method: 'GET',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
-      },
-      body: req.method === 'POST' ? JSON.stringify(req.body) : undefined
+      }
     });
-
     const data = await response.json();
     return res.status(response.status).json(data);
   } catch (error) {
-    return res.status(500).json({ error: 'Failed to reach Telnyx API' });
+    return res.status(500).json({ error: 'Failed to reach Telnyx API', details: error.message });
   }
 }
