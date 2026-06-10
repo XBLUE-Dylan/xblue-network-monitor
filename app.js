@@ -1,35 +1,6 @@
 let allData = { connections: [] };
 let charts = {};
 
-async function connectToTelnyx() {
-  const btn = document.getElementById('connectBtn');
-  btn.disabled = true;
-  btn.textContent = 'Connecting...';
-  setStatus('connecting');
-
-  try {
-    const res = await fetch('/api/telnyx?endpoint=sip_connections%3Fpage%5Bsize%5D%3D25');
-    if (!res.ok) throw new Error('Failed');
-    const data = await res.json();
-    allData.connections = data.data || [];
-    setStatus('connected');
-    document.getElementById('lastUpdated').textContent = 'Updated ' + new Date().toLocaleTimeString();
-    btn.textContent = 'Refresh';
-    btn.disabled = false;
-    renderDashboard();
-  } catch(e) {
-    setStatus('failed');
-    btn.textContent = 'Retry';
-    btn.disabled = false;
-    document.getElementById('mainContent').innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon"><i class="ti ti-alert-circle"></i></div>
-        <div class="empty-title">Connection failed</div>
-        <div class="empty-sub">Could not connect to Telnyx. Check your API key in Vercel environment variables.</div>
-      </div>`;
-  }
-}
-
 function setStatus(state) {
   const dot = document.getElementById('statusDot');
   const text = document.getElementById('statusText');
@@ -37,6 +8,34 @@ function setStatus(state) {
   else if (state === 'connecting') { dot.style.background = '#f59e0b'; text.textContent = 'Connecting...'; }
   else if (state === 'failed') { dot.style.background = '#ef4444'; text.textContent = 'Connection failed'; }
   else { dot.style.background = '#d1d5db'; text.textContent = 'Not connected'; }
+}
+
+async function connectToTelnyx() {
+  const btn = document.getElementById('connectBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Loading...'; }
+  setStatus('connecting');
+
+  try {
+    const res = await fetch('/api/telnyx');
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed');
+    }
+    const data = await res.json();
+    allData.connections = data.data || [];
+    setStatus('connected');
+    if (btn) { btn.disabled = false; btn.textContent = 'Refresh'; }
+    renderDashboard();
+  } catch(e) {
+    setStatus('failed');
+    if (btn) { btn.disabled = false; btn.textContent = 'Retry'; }
+    document.getElementById('mainContent').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon"><i class="ti ti-alert-circle"></i></div>
+        <div class="empty-title">Connection failed</div>
+        <div class="empty-sub">${e.message || 'Could not connect to Telnyx. Check your API key in Vercel environment variables.'}</div>
+      </div>`;
+  }
 }
 
 function generateMockCalls(connections) {
@@ -157,7 +156,7 @@ function renderDashboard() {
           <span class="legend-item"><span class="legend-dot" style="background:#1E6FCC"></span>Inbound</span>
           <span class="legend-item"><span class="legend-dot" style="background:#7B3FBE"></span>Outbound</span>
         </div>
-        <div style="position:relative;height:200px;"><canvas id="volumeChart" role="img" aria-label="Daily call volume over last 14 days">Daily inbound and outbound call volume.</canvas></div>
+        <div style="position:relative;height:200px;"><canvas id="volumeChart" role="img" aria-label="Daily call volume">Daily call volume.</canvas></div>
       </div>
       <div class="chart-card">
         <div class="section-header">
@@ -167,7 +166,7 @@ function renderDashboard() {
           <span class="legend-item"><span class="legend-dot" style="background:#1E6FCC"></span>Inbound ${Math.round(inbound/totalCalls*100)}%</span>
           <span class="legend-item"><span class="legend-dot" style="background:#7B3FBE"></span>Outbound ${Math.round(outbound/totalCalls*100)}%</span>
         </div>
-        <div style="position:relative;height:200px;"><canvas id="directionChart" role="img" aria-label="Inbound vs outbound distribution">Call direction breakdown.</canvas></div>
+        <div style="position:relative;height:200px;"><canvas id="directionChart" role="img" aria-label="Direction split">Direction split.</canvas></div>
       </div>
     </div>
 
@@ -177,17 +176,11 @@ function renderDashboard() {
           <div class="section-title">Customer connections</div>
           <div class="section-sub">${connections.length} active SIP connections</div>
         </div>
-        <button class="refresh-btn" onclick="connectToTelnyx()"><i class="ti ti-refresh"></i> Refresh</button>
       </div>
       <table class="customer-table">
         <thead>
           <tr>
-            <th>Customer</th>
-            <th>Calls</th>
-            <th>Minutes</th>
-            <th>Failed</th>
-            <th>Status</th>
-            <th>AI analysis</th>
+            <th>Customer</th><th>Calls</th><th>Minutes</th><th>Failed</th><th>Status</th><th>AI analysis</th>
           </tr>
         </thead>
         <tbody>${tableRows}</tbody>
@@ -258,11 +251,10 @@ Customer connection: ${name}
 Total calls (30 days): ${total}
 Failed calls: ${failed} (${failRate}%)
 Total minutes: ${mins}
-Inbound calls: ${inbound}
-Outbound calls: ${outbound}
-Average call duration: ${avgDur} seconds
+Inbound: ${inbound} Outbound: ${outbound}
+Avg call duration: ${avgDur} seconds
 
-Provide: 1) Overall health status 2) Any concerns or anomalies worth flagging 3) One specific recommendation. Keep it professional but conversational. Do not mention Telnyx — this is white-labeled.`;
+Provide: 1) Overall health 2) Any concerns 3) One recommendation. Professional but conversational. Do not mention Telnyx.`;
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -278,11 +270,8 @@ Provide: 1) Overall health status 2) Any concerns or anomalies worth flagging 3)
     const text = data.content?.find(b => b.type === 'text')?.text || 'Analysis unavailable.';
     aiText.textContent = text;
   } catch(e) {
-    aiText.textContent = 'AI analysis unavailable right now. Check your connection and try again.';
+    aiText.textContent = 'AI analysis unavailable right now.';
   }
 }
 
-document.getElementById('connectBtn').addEventListener('click', connectToTelnyx);
-document.getElementById('apiKeyInput') && document.getElementById('apiKeyInput').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') connectToTelnyx();
-});
+window.addEventListener('load', connectToTelnyx);
