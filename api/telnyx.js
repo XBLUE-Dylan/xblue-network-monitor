@@ -13,26 +13,37 @@ export default async function handler(req, res) {
   }
 
   const action = req.query.action || 'connections';
+  const auth = { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
 
   try {
     if (action === 'connections') {
-      const response = await fetch('https://api.telnyx.com/v2/connections?page[size]=25', {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }
-      });
-      const data = await response.json();
-      return res.status(response.status).json(data);
+      const r = await fetch('https://api.telnyx.com/v2/connections?page[size]=25', { headers: auth });
+      const data = await r.json();
+      return res.status(r.status).json(data);
     }
 
-    if (action === 'cdrs') {
-      const page = req.query.page || '1';
-      const url = `https://api.telnyx.com/v2/detail_records?filter[record_type]=voice&filter[date_range]=last_30_days&page[number]=${page}&page[size]=250&sort=-created_at`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }
+    if (action === 'create_report') {
+      const end = new Date();
+      const start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const r = await fetch('https://api.telnyx.com/v2/legacy_reporting/batch_detail_records/voice', {
+        method: 'POST',
+        headers: auth,
+        body: JSON.stringify({
+          start_time: start.toISOString(),
+          end_time: end.toISOString(),
+          report_name: 'xblue_monitor_' + Date.now()
+        })
       });
-      const data = await response.json();
-      return res.status(response.status).json(data);
+      const data = await r.json();
+      return res.status(r.status).json(data);
+    }
+
+    if (action === 'check_report') {
+      const id = req.query.id;
+      if (!id) return res.status(400).json({ error: 'No report id' });
+      const r = await fetch('https://api.telnyx.com/v2/legacy_reporting/batch_detail_records/voice/' + id, { headers: auth });
+      const data = await r.json();
+      return res.status(r.status).json(data);
     }
 
     return res.status(400).json({ error: 'Unknown action' });
